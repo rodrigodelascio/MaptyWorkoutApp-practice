@@ -62,23 +62,23 @@ class Cycling extends Workout {
 }
 
 
-// const run1 = new Running([51, 0.41], 5.5, 30, 150);
-// const cycle1 = new Cycling([51, 0.41], 50, 95, 350);
-
-// console.log(run1, cycle1);
-
 class App {
 
     #map;
+    #mapZoomLevel = 13;
     #mapEvent;
     #workouts = [];
 
     constructor() {
         this._getPosition();
 
+        this._getLocalStorage();
+
         form.addEventListener("submit", this._newWorkout.bind(this));
 
         inputType.addEventListener("change", this._toggleElevationField);
+
+        containerWorkouts.addEventListener("click", this._moveToPopup.bind(this));
     }
 
     _getPosition() {
@@ -91,11 +91,11 @@ class App {
     _loadMap(position) {
         const { latitude } = position.coords;
         const { longitude } = position.coords;
-        console.log(`https://www.google.co.uk/maps/@${latitude},${longitude}`);
+        // console.log(`https://www.google.co.uk/maps/@${latitude},${longitude}`);
 
         const coords = [latitude, longitude];
 
-        this.#map = L.map('map').setView(coords, 13);
+        this.#map = L.map('map').setView(coords, this.#mapZoomLevel);
 
         L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -105,6 +105,10 @@ class App {
         // const marker = L.marker(coords).addTo(map);
 
         this.#map.on("click", this._showForm.bind(this));
+
+        this.#workouts.forEach(work => {
+            this._renderWorkoutMarker(work);
+        });
     }
 
     _showForm(mapE) {
@@ -164,15 +168,17 @@ class App {
 
         this.#workouts.push(workout);
 
-        this.renderWorkoutMarker(workout);
+        this._renderWorkoutMarker(workout);
 
         this._renderWorkout(workout);
 
         this._hideForm();
+
+        this._setLocalStorage();
     }
 
 
-    renderWorkoutMarker(workout) {
+    _renderWorkoutMarker(workout) {
         L.marker(workout.coords).addTo(this.#map).bindPopup(L.popup({
             maxWidth: 250,
             minWidth: 100,
@@ -233,9 +239,46 @@ class App {
         }
 
         form.insertAdjacentHTML("afterend", html);
-
     };
 
+    _moveToPopup(e) {
+        const workoutEl = e.target.closest(".workout");
+
+        if (!workoutEl) return;
+
+        const workout = this.#workouts.find(work => work.id === workoutEl.dataset.id);
+
+        this.#map.setView(workout.coords, this.#mapZoomLevel, {
+            animate: true,
+            pan: {
+                duration: 1
+            }
+        });
+    }
+
+
+    _setLocalStorage() {
+        localStorage.setItem("workouts", JSON.stringify(this.#workouts));
+    }
+
+
+    _getLocalStorage() {
+        const data = JSON.parse(localStorage.getItem("workouts"));
+
+        if (!data) return;
+
+        this.#workouts = data;
+
+        this.#workouts.forEach(work => {
+            this._renderWorkout(work);
+        });
+    }
+
+
+    reset() {
+        localStorage.removeItem("workouts");
+        location.reload();
+    }
 
 };
 
